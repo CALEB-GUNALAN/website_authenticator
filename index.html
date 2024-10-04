@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Website</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes gradient {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        .gradient-bg {
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradient 15s ease infinite;
+        }
+        .modal-bg {
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px); /* Blur effect */
+        }
+        .blurred {
+            filter: blur(5px); /* Blurring effect */
+        }
+    </style>
+</head>
+<body class="gradient-bg min-h-screen flex items-center justify-center p-4 relative">
+    <!-- Check Originality Button -->
+    <button id="checkOriginalityButton" class="absolute top-4 right-4 py-2 px-4 bg-blue-500 text-white rounded-lg shadow-md hover:bg-blue-600 transition duration-150 ease-in-out">
+        Check Originality
+    </button>
+
+    <!-- Main Content with New Placeholder Text -->
+    <div id="content" class="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full text-center">
+        <h1 class="text-3xl font-bold mb-4 text-gray-800">Welcome to My Website!</h1>
+        <p class="text-gray-700 mb-6">This is a sample content section . Click on the "Check Originality" button at the top to open the input form.</p>
+        <p class="text-gray-600">Feel free to roam around the website.</p>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 flex items-center justify-center z-50 modal-bg">
+        <div class="bg-white rounded-lg shadow-lg p-8 w-1/3 max-w-lg text-center">
+            <h2 class="text-2xl font-bold mb-4">Originality Check</h2>
+            <form id="codeForm" class="space-y-4">
+                <div>
+                    <label for="website_name" class="block text-sm font-medium text-gray-700">Website Name</label>
+                    <input type="text" id="website_name" name="website_name" required
+                           class="mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                </div>
+                <button type="button" onclick="getCode()" 
+                        class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-pink-600 hover:bg-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 transition duration-150 ease-in-out">
+                    Get Code
+                </button>
+            </form>
+            <div id="result" class="mt-6 text-center"></div>
+            <button id="closeModalButton" class="mt-4 py-2 px-4 bg-red-500 text-white rounded-lg shadow-md hover:bg-red-600 transition duration-150 ease-in-out">
+                Close
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Select the modal and content elements
+        const modal = document.getElementById('modal');
+        const content = document.getElementById('content');
+        const checkOriginalityButton = document.getElementById('checkOriginalityButton');
+        const closeModalButton = document.getElementById('closeModalButton');
+
+        // Function to show the modal and blur the background
+        checkOriginalityButton.onclick = () => {
+            modal.classList.remove('hidden'); // Show the modal
+            content.classList.add('blurred'); // Add blur effect to the content
+        };
+
+        // Function to hide the modal and remove blur
+        closeModalButton.onclick = () => {
+            modal.classList.add('hidden'); // Hide the modal
+            content.classList.remove('blurred'); // Remove blur effect from the content
+        };
+
+        let countdownInterval;
+
+        function getCode() {
+            const websiteName = document.getElementById('website_name').value;
+            const button = document.querySelector('#modal button[type="button"]');
+            const resultDiv = document.getElementById('result');
+
+            button.disabled = true;
+            button.innerHTML = `
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Getting Code...
+            `;
+
+            fetch(`/get-code?website_name=${encodeURIComponent(websiteName)}`)
+                .then(response => response.json())
+                .then(data => {
+                    button.disabled = false;
+                    button.innerHTML = 'Get Code';
+
+                    if (data.error) {
+                        resultDiv.innerHTML = `
+                            <div class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                                <span class="font-medium">Error:</span> ${data.error}
+                            </div>
+                        `;
+                    } else {
+                        resultDiv.innerHTML = `
+                            <div class="p-4 mb-4 text-sm text-green-700 bg-green-100 rounded-lg" role="alert">
+                                <span class="font-medium">Code:</span> ${data.code}
+                            </div>
+                        `;
+
+                        startCountdown(data.time_remaining);
+                    }
+                })
+                .catch(error => {
+                    button.disabled = false;
+                    button.innerHTML = 'Get Code';
+                    resultDiv.innerHTML = `
+                        <div class="p-4 mb-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
+                            <span class="font-medium">Error:</span> An unexpected error occurred. Please try again.
+                        </div>
+                    `;
+                    console.error('Error:', error);
+                });
+        }
+
+        function startCountdown(timeRemaining) {
+            const resultDiv = document.getElementById('result');
+
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+            }
+
+            let countdownElement = document.getElementById('countdown');
+            if (!countdownElement) {
+                countdownElement = document.createElement('div');
+                countdownElement.id = 'countdown';
+                countdownElement.className = 'mt-4 text-lg font-semibold text-gray-700';
+                resultDiv.appendChild(countdownElement);
+            }
+
+            countdownElement.textContent = `Time Remaining: ${timeRemaining} seconds`;
+
+            countdownInterval = setInterval(() => {
+                timeRemaining--;
+                countdownElement.textContent = `Time Remaining: ${timeRemaining} seconds`;
+
+                if (timeRemaining <= 0) {
+                    clearInterval(countdownInterval);
+                    countdownElement.textContent = 'Code expired. Please generate a new one.';
+                }
+            }, 1000);
+        }
+    </script>
+</body>
+</html>
